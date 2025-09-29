@@ -56,6 +56,8 @@ type SceneStore = {
     emissive: string;
   }>) => void;
   toggleHelper: (helper: keyof HelperVisibility) => void;
+  focusSelected: () => void;
+  resetCamera: () => void;
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
@@ -298,6 +300,38 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
     gridHelper.visible = newHelpers.grid;
     axesHelper.visible = newHelpers.axes;
     set({ helpers: newHelpers, revision: get().revision + 1 });
+  },
+  focusSelected: () => {
+    const target = findObjectByEditorId(scene, get().selectedId);
+    const orbit = get().orbit;
+    if (!target || !orbit) return;
+
+    const box = new THREE.Box3().setFromObject(target);
+    if (box.isEmpty()) {
+      orbit.target.copy(target.getWorldPosition(new THREE.Vector3()));
+    } else {
+      const center = box.getCenter(new THREE.Vector3());
+      orbit.target.copy(center);
+    }
+
+    const camera = get().camera;
+    const distance = Math.max(box.getSize(new THREE.Vector3()).length() * 0.8, 6);
+    const direction = new THREE.Vector3()
+      .subVectors(camera.position, orbit.target)
+      .normalize();
+    camera.position.copy(orbit.target.clone().add(direction.multiplyScalar(distance)));
+    camera.updateProjectionMatrix();
+    orbit.update();
+    set({ revision: get().revision + 1 });
+  },
+  resetCamera: () => {
+    const orbit = get().orbit;
+    const camera = get().camera;
+    camera.position.set(8, 6, 12);
+    camera.lookAt(0, 0, 0);
+    orbit?.target.set(0, 1, 0);
+    orbit?.update();
+    set({ revision: get().revision + 1 });
   },
   pushHistory: () => {
     const entry = extractHistoryEntry();

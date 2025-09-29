@@ -19,6 +19,10 @@ const Viewport = () => {
   const pushHistory = useSceneStore((state) => state.pushHistory);
   const selectedId = useSceneStore((state) => state.selectedId);
   const transformMode = useSceneStore((state) => state.transformMode);
+  const helpers = useSceneStore((state) => state.helpers);
+  const toggleHelper = useSceneStore((state) => state.toggleHelper);
+  const focusSelected = useSceneStore((state) => state.focusSelected);
+  const resetCamera = useSceneStore((state) => state.resetCamera);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -28,6 +32,8 @@ const Viewport = () => {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -105,10 +111,17 @@ const Viewport = () => {
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
+    const onDoubleClick = () => {
+      focusSelected();
+    };
+
+    renderer.domElement.addEventListener('dblclick', onDoubleClick);
+
     return () => {
       cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('dblclick', onDoubleClick);
       transformControls.detach();
       scene.remove(transformControls);
       renderer.dispose();
@@ -136,7 +149,31 @@ const Viewport = () => {
     }
   }, [scene, selectedId]);
 
-  return <div ref={containerRef} className="viewport-canvas" />;
+  return (
+    <div ref={containerRef} className="viewport-canvas">
+      <div className="viewport-overlay">
+        <div className="viewport-overlay-group">
+          <button type="button" onClick={resetCamera}>
+            重置视角
+          </button>
+          <button type="button" onClick={focusSelected} disabled={!selectedId}>
+            对齐选中
+          </button>
+        </div>
+        <div className="viewport-overlay-group">
+          <button type="button" className={helpers.grid ? 'active' : ''} onClick={() => toggleHelper('grid')}>
+            网格
+          </button>
+          <button type="button" className={helpers.axes ? 'active' : ''} onClick={() => toggleHelper('axes')}>
+            坐标轴
+          </button>
+        </div>
+      </div>
+      <div className="viewport-hint">
+        <span>拖拽旋转 · 右键平移 · 滚轮缩放</span>
+      </div>
+    </div>
+  );
 };
 
 export default Viewport;
